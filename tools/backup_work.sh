@@ -13,13 +13,14 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 DEST_ROOT="${WORK_BACKUP_DIR:-$HOME/Library/Mobile Documents/com~apple~CloudDocs/backups/codwx-work}"
-# 工作数据清单：与 .gitignore 里排除的路径保持一致
-ITEMS=(
-  topics formatted outputs topic-scans sources reviews assets
-  kimi-test vidu-test video voice
-  上下文.md module-log.md
-  "*提示词-V4.1.md" "*提示词-V6.1.md"
-)
+# 工作数据清单：直接问 git「哪些被忽略了」——不硬编码任何文件名。
+# 用 while-read 而非 mapfile：macOS 自带 bash 3.2 没有 mapfile。
+ITEM_LIST="$(git -c core.quotepath=false ls-files --others --ignored --exclude-standard --directory \
+             | grep -v '^\.privacy-local\.txt$' || true)"
+if [ -z "$ITEM_LIST" ]; then
+  echo "⚠️  没有发现被忽略的工作数据，检查 .gitignore"
+  exit 1
+fi
 
 RSYNC_OPTS=(-a --human-readable)
 for a in "$@"; do
@@ -31,11 +32,15 @@ done
 
 mkdir -p "$DEST_ROOT"
 n=0
-for item in "${ITEMS[@]}"; do
+while IFS= read -r item; do
+  [ -n "$item" ] || continue
+  # ⚠️ 必须去掉尾斜杠：rsync 源路径带 / 会拷贝「目录内容」而不是「目录本身」，
+  #    会把所有文件拍平到备份根目录（已踩过）
+  item="${item%/}"
   [ -e "$item" ] || continue
   rsync "${RSYNC_OPTS[@]}" -- "$item" "$DEST_ROOT/" >/dev/null
   n=$((n+1))
-done
+done <<< "$ITEM_LIST"
 
 echo "✅ 已同步 $n 项 → $DEST_ROOT"
 du -sh "$DEST_ROOT" 2>/dev/null | awk '{print "   备份体积：" $1}'
