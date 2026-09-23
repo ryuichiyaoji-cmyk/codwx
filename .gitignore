@@ -1,0 +1,25 @@
+# 账号私有数据：含收入、粉丝、后台关键词
+account-status.md
+
+# 密钥与登录态
+.env
+.env.*
+*.key
+*.pem
+cookies*.txt
+
+# 系统垃圾
+.DS_Store
+__pycache__/
+*.pyc
+
+# 视频工程（依赖与产物都很大，不进仓库）
+video/*/node_modules/
+video/*/build*/
+video/*/renders/
+video/*/fin_frames/
+video/*/stills/
+video/*/audio/cache/
+
+# 大体积可再下载资产（字体 17.8MB，需要时按 package.json / 脚本重新获取）
+video/*/public/fonts/NotoSansSC.ttf
