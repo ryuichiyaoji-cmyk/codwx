@@ -1,6 +1,6 @@
 ---
 name: ai-article-formatter
-description: "为本号做内容层排版：段落长度、加粗密度、小标题间距、配图节奏，产出符合 md2wx 语法的 markdown 稿。当用户说'排版''排版一下''准备发布'时使用。不用于写稿，不用于渲染推送（走 ai-wechat-publish）。"
+description: "为公众号做内容层排版：段落长度、加粗密度、小标题间距、配图节奏，产出符合 md2wx 语法的 markdown 稿。当用户说'排版''排版一下''准备发布'时使用。不用于写稿，不用于渲染推送（走 ai-wechat-publish）。"
 ---
 
 # 公众号排版

@@ -28,6 +28,9 @@ WXPY = Path(os.environ.get("WXPYTHON", sys.executable))
 MD2WX = Path(os.environ.get("MD2WX", Path.home() / ".workbuddy/skills/ai-news-xiaobian/md2wx.py"))
 ENV = Path(os.environ.get("WX_ENV_FILE", Path.home() / ".workbuddy/.env"))
 MEM = Path(os.environ.get("PUBLISH_LOG_DIR", Path.home() / ".workbuddy/memory"))
+# 你的公众号名称：封面署名与草稿 author 字段。留空则只在封面显示栏目语。
+# 这是唯一需要填自己号名的地方，用环境变量给，不写进代码。
+ACCOUNT_NAME = os.environ.get("ACCOUNT_NAME", "")
 FONT_BOLD = "/System/Library/Fonts/STHeiti Medium.ttc"
 BLUE, DARK, GREY, LIGHT, WHITE = (61,90,128),(34,48,60),(122,135,148),(244,246,248),(255,255,255)
 API = "https://api.weixin.qq.com/cgi-bin"
@@ -104,8 +107,12 @@ def make_cover(title, out, tag):
     y = 150 if len(lines) <= 2 else 132
     for i, ln in enumerate(lines):
         d.text((54, y + i * (size + 12)), ln, font=f, fill=DARK)
-    d.text((54, 318), "本号", font=f_brand, fill=BLUE)
-    d.text((168, 320), "｜ AI 领域资讯与实测", font=f_brand, fill=GREY)
+    if ACCOUNT_NAME:
+        d.text((54, 318), ACCOUNT_NAME, font=f_brand, fill=BLUE)
+        d.text((54 + max(90, len(ACCOUNT_NAME) * 20) + 24, 320),
+               "｜ AI 领域资讯与实测", font=f_brand, fill=GREY)
+    else:
+        d.text((54, 318), "AI 领域资讯与实测", font=f_brand, fill=BLUE)
     img.save(out)
     return len(lines)
 
@@ -197,7 +204,7 @@ def main():
         m = re.search(r"【导语】(.+?)(?:\n|$)", md_text)
         digest = (m.group(1).strip() if m else md_text.strip().splitlines()[0])[:120]
     payload = {"articles": [{"title": title, "content": html_text, "thumb_media_id": thumb["media_id"],
-                             "digest": digest, "author": "本号", "content_source_url": "",
+                             "digest": digest, "author": ACCOUNT_NAME, "content_source_url": "",
                              "need_open_comment": 0, "only_fans_can_comment": 0}]}
     pf = Path("/tmp/wx_draft_payload.json"); pf.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
     res = curl_json(["-X","POST","-H","Content-Type: application/json",f"{API}/draft/add?access_token={T}",

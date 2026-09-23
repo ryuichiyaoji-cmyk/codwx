@@ -1,6 +1,6 @@
 ---
 name: ai-wechat-publish
-description: "把本号的稿件渲染并推送到微信公众号草稿箱。当用户说'发布草稿箱''推送到草稿箱''发布''渲染'时使用。不用于写稿、排版内容层（走 ai-article-formatter）。"
+description: "把公众号稿件渲染并推送到微信公众号草稿箱。当用户说'发布草稿箱''推送到草稿箱''发布''渲染'时使用。不用于写稿、排版内容层（走 ai-article-formatter）。"
 ---
 
 # 微信草稿箱发布链路

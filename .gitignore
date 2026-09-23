@@ -23,3 +23,25 @@ video/*/audio/cache/
 
 # 大体积可再下载资产（字体 17.8MB，需要时按 package.json / 脚本重新获取）
 video/*/public/fonts/NotoSansSC.ttf
+
+# 隐私审计的私有词表（含本人身份标识，绝不提交）
+.privacy-local.txt
+
+# ============================================================
+# 本机工作数据：含个人身份与内容，不进仓库（文件仍在本地）
+# 这些是「写稿产出」，不是「技能系统」——见 docs/接入指南.md
+# ============================================================
+topics/
+formatted/
+outputs/
+topic-scans/
+sources/
+reviews/
+assets/
+kimi-test/
+vidu-test/
+video/
+voice/
+上下文.md
+module-log.md
+提示词-*.md
