@@ -70,7 +70,7 @@ description: "本号内容生产总纲与统一入口。用户说出任一环节
 | 文件 | 管什么 |
 |---|---|
 | `.agents/skills/*/SKILL.md` | 七个环节的执行规则 |
-| `tools/preflight.py` | 发布前自检（26 项）。**退出码 0 才可发** |
+| `tools/preflight.py` | 发布前自检（**27 项**，含风格卡校验）。**退出码 0 才可发** |
 | `tools/search_demand.py` | 选题的"搜索价值"打分 + 长尾词 |
 | `tools/voice_check.py` | 文风体检（对照风格卡基线） |
 | `voice/风格卡.md` + `voice/语料/` | 个人文风与其语料 |
@@ -80,6 +80,19 @@ description: "本号内容生产总纲与统一入口。用户说出任一环节
 | `topics/` `vidu-test/` `kimi-test/` `formatted/` | 各选题的核验底稿、草稿、排版稿 |
 | `sources/` | 一手源存档（公告 PDF、官方原文要点） |
 | `上下文.md` | 体系级上下文压缩（新对话读这一份即可接手） |
+
+## 五点半、工具地图（机械活一律走脚本，别手工翻）
+
+| 脚本 | 什么时候用 |
+|---|---|
+| `topic_scan.py` | 选题：抓源 → 自动聚类 → 搜索验证 → 归档，一条命令 |
+| `draft_kit.py brief` | 开稿前：一屏读完风格卡/账号状态/去重清单/规格 |
+| `draft_kit.py check <稿>` | 完稿：preflight + 文风体检合并输出 |
+| `draft_kit.py handoff <稿>` | 抽核心数字，生成排版交接单骨架 |
+| `make_figs.py` | 配图：信息/对照/清单/条目/柱状 五类模板 |
+| `wx_publish.py` | 发布：渲染 → 封面 → 上传素材 → 推草稿箱 → 回查 → 写日志 |
+| `backup.sh` | 备份：提交改动 → 推送到 iCloud 异地（+ 其它远程） |
+| `preflight.py` / `voice_check.py` / `search_demand.py` | 已被上面几个封装调用，也可单独跑 |
 
 ## 六、三条硬规矩
 
