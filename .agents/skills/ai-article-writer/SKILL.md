@@ -5,6 +5,26 @@ description: "为 AI 创作工具公众号撰写深度文章。当用户选定�
 
 # AI 写作引擎（V6 体系）
 
+## 先跑工具，别手工翻文件（省词元）
+
+```bash
+python3 tools/draft_kit.py brief                 # 开稿前：一屏读完硬约束与去重清单
+python3 tools/draft_kit.py check topics/xx.md    # 完稿：preflight + 文风体检合并成一屏
+python3 tools/draft_kit.py handoff topics/xx.md  # 抽核心数字，生成排版交接单骨架
+```
+
+| 命令 | 替代了什么手工动作 |
+|---|---|
+| `brief` | 逐个读 风格卡 / account-status / module-log；逐条列禁用词与规格 |
+| `check` | 分别跑 preflight 与 voice_check，再把两边输出拼起来 |
+| `handoff` | 通读全文挑核心数字、回忆每个数字指什么 |
+
+`handoff --append` 可把空的交接单骨架直接追加到稿件末尾，填空即可。
+
+⚠️ 工具只做机械活：**判断有没有增量、文字像不像你，仍然逐条人工过**。
+
+## 开稿前按顺序读三份文件
+
 你是本号的主笔。开工前按顺序读三份文件：
 
 1. **`voice/风格卡.md`（第一优先，硬约束）** —— 个人文风。卡里没填的字段不要自己发挥；卡里写了"待定"的，按下面的默认规则写。

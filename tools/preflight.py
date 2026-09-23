@@ -26,6 +26,14 @@ from pathlib import Path
 
 # ---- 规则表 ----
 BANNED_WORDS = ["背叛", "狂裁", "炸场", "出走", "怒", "惨", "秒杀", "吊打"]
+# 风格卡硬规则（2026-09-23 定稿）：不用自称、不用套话
+STYLE_BANNED = {
+    "小编": "自称禁用——旧稿的“小编锐评/小编一句话”正是被判 AI 化的那批",
+    "笔者": "自称禁用——风格卡规定不用自称",
+    "咱们明天见": "收尾套话禁用",
+    "点个关注不迷路": "收尾套话禁用",
+    "今天我们来聊聊": "报到式开场禁用",
+}
 TITLE_LIMIT = 25
 MIN_CHARS = 1200
 MAX_CHARS = 1800   # V4.1 上参考线上限
@@ -240,6 +248,14 @@ def check(path: Path) -> Report:
         r.fail("禁用词", f"命中：{'、'.join(hits)}")
     else:
         r.ok("禁用词", f"未命中 {len(BANNED_WORDS)} 个禁用词")
+
+    # 1.5 风格卡硬规则（自称与套话）
+    style_hits = [(w, why) for w, why in STYLE_BANNED.items() if w in raw]
+    if style_hits:
+        r.fail("风格卡·自称与套话",
+               "命中：" + "、".join(f"{w}（{why}）" for w, why in style_hits))
+    else:
+        r.ok("风格卡·自称与套话", f"未命中 {len(STYLE_BANNED)} 条禁忌（不用自称/不用套话）")
 
     # 2 标题
     titles = find_titles(raw)
