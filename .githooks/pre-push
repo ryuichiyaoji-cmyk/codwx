@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# pre-push：推送前强制隐私审计
+#
+# 为什么需要它：backup.sh 里的审计只保护走 backup.sh 的推送。
+# 手动 git push 会绕过那道门槛 —— 而仓库是公开的，一次误推不可逆。
+#
+# 安装：bash tools/install_hooks.sh
+# 临时跳过：git push --no-verify   （不推荐，且 hook 会失效一次）
+#
+# 注：pre-push hook 不受版本控制，clone 后必须跑一次 install_hooks.sh。
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT" || exit 1
+
+# git 通过 stdin 传待推送的 ref 列表；读掉它避免影响 git 行为
+while read -r local_ref local_sha remote_ref remote_sha; do :; done
+
+# 只拦推送（不拦 fetch）；remote 名称与 URL 是 hook 的前两个参数
+REMOTE_NAME="${1:-}"
+REMOTE_URL="${2:-}"
+
+echo "🔍 pre-push 隐私审计（目标：${REMOTE_NAME}）…"
+
+if python3 tools/privacy_audit.py --history; then
+  echo "✅ 审计通过，允许推送"
+  exit 0
+fi
+
+cat <<'EOF'
+
+────────────────────────────────────────────────────────────
+❌ 隐私审计未通过，推送已被 pre-push hook 拦下。
+
+   本仓库是公开的。一旦推上去，GitHub 会立刻可被抓取，
+   搜索引擎与爬虫的副本事后也追不回 —— 所以这里设成硬拦截。
+
+   处理方式：
+     1. 按上面的清单修掉问题
+     2. 如果问题在历史提交里，需要重写历史（见 docs/接入指南.md）
+     3. 确认是误报：某行加 "privacy-audit:ok" 豁免标记
+        （凭据类 CRITICAL 不可豁免）
+     4. 万不得已：git push --no-verify
+────────────────────────────────────────────────────────────
+EOF
+exit 1

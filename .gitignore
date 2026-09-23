@@ -45,3 +45,7 @@ voice/
 上下文.md
 module-log.md
 *提示词-*.md
+
+# 任何 token / 凭据交接文件（保险起见一律忽略）
+.gh-token
+*.token

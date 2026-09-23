@@ -142,7 +142,8 @@ python3 tools/draft_kit.py check topics/你的稿子.md
 
 ```
 .agents/        8 个技能定义
-tools/          11 个脚本（含隐私审计与两套备份）
+tools/          12 个脚本（含隐私审计、勾子安装与两套备份）
+.githooks/      pre-push 勾子（推送前强制审计）
 .github/        Issue / PR 模板、CONTRIBUTING、行为准则
 docs/           三份手册
 README.md  LICENSE  .gitignore  .privacy-ignore
@@ -174,8 +175,23 @@ python3 tools/privacy_audit.py --history  # 连全部 git 历史一起扫
 
 退出码 **0 = 干净**、1 = 有 CRITICAL/HIGH、2 = 仅有 MEDIUM、3 = 自检失败（结果不可信）。
 
-**推送时自动跑**：`tools/backup.sh` 已把审计设为硬门槛，不通过就拒绝推送——仓库是公开的，
-一次误推不可逆。误报可用 `--no-audit` 跳过（会警告）。
+**两道门槛，覆盖两种推送方式**
+
+| 推送方式 | 谁在拦 |
+|---|---|
+| `bash tools/backup.sh` | 脚本内置审计（`--no-audit` 可跳过，会警告） |
+| **裸 `git push`** | **`pre-push` 勾子**（`.githooks/pre-push`） |
+
+勾子需要启用一次（clone 后必做）：
+
+```bash
+bash tools/install_hooks.sh     # 把 core.hooksPath 指向 .githooks/
+```
+
+> ⚠️ git 出于安全考虑**不跟踪 `.git/hooks/`**，所以勾子放在受版本控制的 `.githooks/`，
+> 再让 git 去那里找。`core.hooksPath` 是本机配置，换机器要重跑一次。
+>
+> 跳过：`git push --no-verify`（不推荐）
 
 **逐行豁免**：某行含 `privacy-audit:ok` 可跳过该行命中（如第三方许可证邮箱）；
 但对 CRITICAL（凭据类）**不生效**。
