@@ -2,4 +2,4 @@
 # 用途：第三方 / vendored 文件里出现的邮箱、构建路径不是本人信息
 
 video/bin/              # ffmpeg 静态二进制，含其构建机的绝对路径
-video/*/public/fonts/   # 字体文件及其上游 LICENSE（含字体作者邮箱）
+video/*/public/fonts/   # 字体文件及其上游 LICENSE（含上游作者邮箱）
