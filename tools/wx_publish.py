@@ -17,10 +17,17 @@ import argparse, html as ihtml, json, os, re, subprocess, sys, datetime
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-WXPY = Path.home() / ".workbuddy/binaries/python/versions/3.13.12/bin/python3"
-MD2WX = Path.home() / ".workbuddy/skills/ai-news-xiaobian/md2wx.py"
-ENV = Path.home() / ".workbuddy/.env"
-MEM = Path.home() / ".workbuddy/memory"
+
+# 四个本机路径都可用环境变量覆盖，默认值只是作者本机的约定。
+# 换成你自己的环境时，export 这四个变量即可，不用改代码：
+#   WXPYTHON        渲染器用的 python（默认：当前解释器）
+#   MD2WX           markdown → 微信 HTML 的渲染脚本
+#   WX_ENV_FILE     存放 WX_APPID / WX_APPSECRET 的文件
+#   PUBLISH_LOG_DIR 发布日志目录
+WXPY = Path(os.environ.get("WXPYTHON", sys.executable))
+MD2WX = Path(os.environ.get("MD2WX", Path.home() / ".workbuddy/skills/ai-news-xiaobian/md2wx.py"))
+ENV = Path(os.environ.get("WX_ENV_FILE", Path.home() / ".workbuddy/.env"))
+MEM = Path(os.environ.get("PUBLISH_LOG_DIR", Path.home() / ".workbuddy/memory"))
 FONT_BOLD = "/System/Library/Fonts/STHeiti Medium.ttc"
 BLUE, DARK, GREY, LIGHT, WHITE = (61,90,128),(34,48,60),(122,135,148),(244,246,248),(255,255,255)
 API = "https://api.weixin.qq.com/cgi-bin"
