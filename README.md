@@ -134,6 +134,50 @@ python3 tools/draft_kit.py check topics/你的稿子.md
 
 ---
 
+## 七点五、仓库里有什么 / 没有什么
+
+**本仓库只放「技能系统」**——它是可复用的方法与工具：
+
+```
+.agents/        8 个技能定义
+tools/          10 个脚本（含隐私审计与两套备份）
+docs/           三份手册
+README.md  LICENSE  .gitignore  .privacy-ignore
+```
+
+**不含**任何个人内容。以下是**本机工作数据**，已 gitignore，文件仍在本地：
+
+```
+topics/ formatted/ outputs/     稿件与排版产物
+topic-scans/ sources/ reviews/  选题存档、一手源、复盘
+assets/ video/                  配图与视频工程
+voice/                          风格卡与个人语料
+上下文.md module-log.md          体系上下文与去重记录
+```
+
+**备份分工**
+
+| 内容 | 命令 | 去向 |
+|---|---|---|
+| 技能系统 | `bash tools/backup.sh "说明"` | GitHub（私有）+ iCloud（git） |
+| 工作数据 | `bash tools/backup_work.sh` | iCloud（rsync，不经 git） |
+
+## 七点六、推送前必做：隐私审计
+
+```bash
+python3 tools/privacy_audit.py            # 扫工作区（git 跟踪的文件）
+python3 tools/privacy_audit.py --history  # 连全部 git 历史一起扫
+```
+
+退出码 **0 = 干净**、1 = 有 CRITICAL/HIGH、2 = 仅有 MEDIUM、3 = 自检失败（结果不可信）。
+
+检测：凭据 · 本机路径 · 邮箱手机 · 账号运营数据 · 个人主页链接 ·
+以及你在 `.privacy-local.txt`（gitignore）里维护的私有关键词。
+
+> 脚本内置护栏：若中文名文件读不到会**拒绝出报告**，避免"看着干净其实没扫到"。
+> 这条护栏源于一次真实事故——`git ls-files` 默认转义非 ASCII 文件名，
+> 导致中文名文件被静默跳过、审计漏报 17 处。
+
 ## 八、隐私与凭据
 
 - `account-status.md`（粉丝数、收入等）**已 gitignore**，不进仓库
