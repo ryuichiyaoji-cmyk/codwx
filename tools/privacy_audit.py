@@ -73,6 +73,10 @@ RULES = [
 
 SEV_RANK = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2}
 
+# 逐行豁免：某行含这个标记就跳过该项（用于已人工确认的误报，如第三方许可证里的邮箱）
+# ⚠️ 对 CRITICAL（凭据类）不生效——见 scan_text 里的判断
+WAIVER = "privacy-audit:ok"
+
 
 def load_ignore():
     pats = list(DEFAULT_IGNORE)
@@ -133,14 +137,27 @@ def read_text(path, ignore=()):
         return None
 
 
+def _waived(text, pos):
+    """该命中所在行是否有豁免标记"""
+    start = text.rfind("\n", 0, pos) + 1
+    end = text.find("\n", pos)
+    line = text[start:end if end != -1 else len(text)]
+    return WAIVER in line
+
+
 def scan_text(text, where, findings, terms):
     for cat, sev, rx, why in RULES:
         for m in rx.finditer(text):
+            # ⚠️ 豁免标记对 CRITICAL（凭据类）无效——否则一句注释就能放行真密钥
+            if sev != "CRITICAL" and _waived(text, m.start()):
+                continue
             line_no = text[:m.start()].count("\n") + 1
             findings.append({"where": where, "line": line_no, "category": cat,
                              "severity": sev, "why": why, "hit": m.group(0)[:60]})
     for t in terms:
         for m in re.finditer(re.escape(t), text):
+            if _waived(text, m.start()):
+                continue
             line_no = text[:m.start()].count("\n") + 1
             findings.append({"where": where, "line": line_no, "category": "私有关键词",
                              "severity": "HIGH", "why": "命中 .privacy-local.txt 中的词",
@@ -239,6 +256,7 @@ def main():
     ap.add_argument("--history", action="store_true", help="连 git 全历史一起扫（慢）")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--max-per-rule", type=int, default=8)
+    ap.add_argument("--show-waived", action="store_true", help="显示被 privacy-audit:ok 豁免的项")
     a = ap.parse_args()
 
     if not sanity_check():

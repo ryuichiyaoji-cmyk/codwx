@@ -90,7 +90,7 @@ python3 tools/draft_kit.py check topics/你的稿子.md
 
 ---
 
-## 五、九个工具（`tools/`）
+## 五、十一个工具（`tools/`）
 
 | 脚本 | 一句话 |
 |---|---|
@@ -102,7 +102,9 @@ python3 tools/draft_kit.py check topics/你的稿子.md
 | `preflight.py` | 发布前自检 **27 项**（禁用词/结构/合规/排版/风格卡），退出码 0 才可发 |
 | `search_demand.py` | 搜索需求验证：Bing/Google/百度 建议接口 → 打分 + 长尾词 |
 | `voice_check.py` | 文风体检：对照个人语料基线，查 AI 腔与人味指标 |
-| `backup.sh` | 一键备份：提交改动 → 推送到所有远程 |
+| `privacy_audit.py` | 隐私审计：7 个面逐一排查（含 git 提交作者与提交信息） |
+| `backup.sh` | 一键备份：**隐私审计 → 提交 → 推送到所有远程** |
+| `backup_work.sh` | 工作数据备份：rsync 到 iCloud（不经 git） |
 
 详细参数与示例输出见 [`docs/工具手册.md`](docs/工具手册.md)。
 
@@ -140,7 +142,8 @@ python3 tools/draft_kit.py check topics/你的稿子.md
 
 ```
 .agents/        8 个技能定义
-tools/          10 个脚本（含隐私审计与两套备份）
+tools/          11 个脚本（含隐私审计与两套备份）
+.github/        Issue / PR 模板、CONTRIBUTING、行为准则
 docs/           三份手册
 README.md  LICENSE  .gitignore  .privacy-ignore
 ```
@@ -170,6 +173,12 @@ python3 tools/privacy_audit.py --history  # 连全部 git 历史一起扫
 ```
 
 退出码 **0 = 干净**、1 = 有 CRITICAL/HIGH、2 = 仅有 MEDIUM、3 = 自检失败（结果不可信）。
+
+**推送时自动跑**：`tools/backup.sh` 已把审计设为硬门槛，不通过就拒绝推送——仓库是公开的，
+一次误推不可逆。误报可用 `--no-audit` 跳过（会警告）。
+
+**逐行豁免**：某行含 `privacy-audit:ok` 可跳过该行命中（如第三方许可证邮箱）；
+但对 CRITICAL（凭据类）**不生效**。
 
 检测：凭据 · 本机路径 · 邮箱手机 · 账号运营数据 · 个人主页链接 ·
 以及你在 `.privacy-local.txt`（gitignore）里维护的私有关键词。
