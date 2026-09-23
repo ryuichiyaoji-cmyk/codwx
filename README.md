@@ -156,5 +156,9 @@ python3 tools/draft_kit.py check topics/你的稿子.md
 
 ## 十、许可
 
-未指定开源许可。若需他人复用，请先补充 `LICENSE`；公开前请按
-[`docs/接入指南.md`](docs/接入指南.md#清理工作数据) 清掉本机工作数据。
+**代码与工具**：MIT License，见 [`LICENSE`](LICENSE)。方法、脚本、技能定义随便拿去用。
+
+**文章与素材**：`topics/` `formatted/` `outputs/` `topic-scans/` `sources/` `reviews/`
+`assets/` `video/` `voice/` 里是作者的文章正文、一手源与个人语料，**版权归作者，不在 MIT 范围内**。
+
+> 一句话：方法可以拿去用，文章不能拿去抄。
