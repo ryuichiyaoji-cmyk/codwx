@@ -178,6 +178,51 @@ def scan_history(terms):
     return findings
 
 
+def scan_git_metadata(terms):
+    """git 元数据泄露面：提交作者/提交者、提交信息。
+    这两处最容易被忽略——内容擦干净了，作者名还挂在每个 commit 上。"""
+    findings = []
+
+    # ① 作者与提交者
+    r = subprocess.run(["git", "log", "--all", "--format=%h%x1f%an%x1f%ae%x1f%cn%x1f%ce"],
+                       cwd=REPO, capture_output=True, text=True)
+    seen = set()
+    for line in r.stdout.splitlines():
+        parts = line.split("\x1f")
+        if len(parts) < 5:
+            continue
+        h, an, ae, cn, ce = parts
+        for kind, name, mail in (("作者", an, ae), ("提交者", cn, ce)):
+            key = (kind, name, mail)
+            if key in seen:
+                continue
+            seen.add(key)
+            bad = [t for t in terms if t.lower() in (name + " " + mail).lower()]
+            local_domain = bool(re.search(r"@(?:localhost|.*\.local)\b", mail, re.I))
+            if bad or local_domain:
+                findings.append({
+                    "where": f"git {kind}", "line": 0, "category": "Git 元数据",
+                    "severity": "HIGH",
+                    "why": "作者信息含私人标识" if bad else "邮箱是本地域名",
+                    "hit": f"{name} <{mail}>"})
+
+    # ② 提交信息
+    r = subprocess.run(["git", "log", "--all", "--format=%h%x1f%B%x1e"],
+                       cwd=REPO, capture_output=True, text=True)
+    for chunk in r.stdout.split("\x1e"):
+        if "\x1f" not in chunk:
+            continue
+        h, msg = chunk.split("\x1f", 1)
+        h = h.strip()
+        for t in terms:
+            if t in msg:
+                line_no = msg[:msg.index(t)].count("\n") + 1
+                findings.append({
+                    "where": f"git 提交信息 {h}", "line": line_no, "category": "Git 元数据",
+                    "severity": "MEDIUM", "why": "提交信息含私有关键词", "hit": t})
+    return findings
+
+
 def sanity_check():
     """护栏：中文名文件必须能被读到，否则说明路径处理有问题（曾静默漏报）"""
     files = tracked_files()
@@ -200,6 +245,7 @@ def main():
         return 3
     terms = load_local_terms()
     findings = scan_worktree(a.all_files, terms)
+    findings += scan_git_metadata(terms)          # git 元数据永远扫
     if a.history:
         findings += scan_history(terms)
 
