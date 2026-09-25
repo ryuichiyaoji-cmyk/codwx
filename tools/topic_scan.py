@@ -81,6 +81,23 @@ def load_items(args):
     return uniq, {"stats": stats, "fails": fails}
 
 
+def fmt_time(raw):
+    """把各种日期格式统一成 MM-DD HH:MM（本地时区），取不到则回退原串"""
+    if not raw:
+        return "??-?? ??:??"
+    from email.utils import parsedate_to_datetime
+    try:
+        dt = parsedate_to_datetime(raw)
+    except Exception:
+        try:
+            dt = datetime.datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except Exception:
+            return raw[:16]
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=datetime.timezone.utc)
+    return dt.astimezone().strftime("%m-%d %H:%M")
+
+
 def cluster(items):
     """按实体词把标题聚成簇；一条线索可落进多个簇"""
     groups = defaultdict(list)
@@ -144,6 +161,7 @@ def main():
         print(f"   ⚠️ 抓取失败：{'、'.join(meta['fails'])}")
 
     lines = [f"# 选题扫描 · {datetime.date.today().isoformat()}", "",
+             "> 每条线索前缀为该条**发布时间**（本机时区）。写选题卡时，`事件` 字段必须标注实际发生时间。", "",
              f"线索 **{len(items)}** 条｜候选簇 **{len(clusters)}** 个｜原始 JSON：`{rel(jp)}`", ""]
     if meta.get("stats"):
         lines += ["## 信源覆盖", "", "| 信源 | 抓取 | 窗口内 |", "|---|---|---|"]
@@ -156,12 +174,12 @@ def main():
     for name, its in clusters[:a.top]:
         lines.append(f"### {name}（{len(its)} 条）")
         for it in its[:6]:
-            lines.append(f"- [{it['src']}] {it['title']}")
+            lines.append(f"- `{fmt_time(it.get('date'))}` [{it['src']}] {it['title']}")
         lines.append("")
         if not a.quiet:
             print(f"\n▸ {name}（{len(its)} 条）")
             for it in its[:3]:
-                print(f"   · [{it['src']}] {it['title'][:66]}")
+                print(f"   · [{it['src']} {fmt_time(it.get('date'))}] {it['title'][:60]}")
 
     # 指定簇
     if a.topic:
@@ -174,7 +192,7 @@ def main():
             print(f"   ▸ {name}：{len(hit)} 条")
             lines += [f"### {name}（{len(hit)} 条）", f"关键词：{'、'.join(kws)}", ""]
             for it in hit[:10]:
-                lines += [f"- [{it['src']}] {it['title']}｜{it['url']}"]
+                lines += [f"- `{fmt_time(it.get('date'))}` [{it['src']}] {it['title']}｜{it['url']}"]
             lines.append("")
 
     # 搜索需求验证
@@ -199,7 +217,7 @@ def main():
     if rest:
         lines += ["## 未归入任何簇的线索（前 30 条）", ""]
         for it in rest[:30]:
-            lines.append(f"- [{it['src']}] {it['title']}")
+            lines.append(f"- `{fmt_time(it.get('date'))}` [{it['src']}] {it['title']}")
 
     out = Path(a.out) if a.out else REPO / "topic-scans" / f"{datetime.date.today().isoformat()}-{stamp[-4:]}.md"
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
