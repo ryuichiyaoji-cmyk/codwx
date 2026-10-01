@@ -32,18 +32,20 @@
 ② 开稿前      python3 tools/draft_kit.py brief
               一屏读完：风格卡硬约束 / 账号状态新鲜度 / 去重清单 / 规格
               ↓
-③ 写作        六模块结构（功能固定、表达每篇不同）+ 合规三件套
+③ 写作        六模块 + 落地段（功能固定、表达每篇不同）+ 形态标注 + 合规三件套
               ↓
 ④ 完稿体检    python3 tools/draft_kit.py check topics/xx.md
-              preflight（27 项）+ 文风体检，合并成一屏
+              preflight（机械检查）+ 文风体检，合并成一屏
               ↓
 ⑤ 配图        python3 tools/make_figs.py 对照 -t "标题" -o assets/a.png
               信息 / 对照 / 清单 / 条目 / 柱状 五类模板
               ↓
 ⑥ 排版        ai-article-formatter 技能：段落长度 / 加粗密度 / 配图节奏
               ↓
-⑦ 发布        python3 tools/wx_publish.py formatted/xx-排版稿.md
-              ↓ 草稿箱（用户在后台手动点发布）
+⑦ 发布        python3 tools/wx_publish.py formatted/xx-排版稿.md --form 资讯
+              preflight → 发布总闸（账号健康度四查 + 形态配比）
+              → 草稿箱体检 → 渲染 / 推草稿箱
+              ↓ 用户在后台手动点发布；24–48h 回填 perf-log
 ⑧ 备份        bash tools/backup.sh "说明"
 ```
 
@@ -79,10 +81,10 @@ python3 tools/draft_kit.py check topics/你的稿子.md
 |---|---|---|
 | **`ai-content-ops`** | 任一环节指令 | 认意图 → 路由子技能 + 跨阶段红线 + 工具地图 |
 | `ai-topic-scout` | 今天有什么选题 | 5–8 个选题卡（分国内外）+ 搜索验证 + 优先级表 |
-| `ai-article-writer` | 写这篇 / 选题X | 判素材状态 → 六模块稿 + 排版交接单 |
+| `ai-article-writer` | 写这篇 / 选题X | 判素材状态 → 六模块 + 落地段 + 形态标注 + 排版交接单 |
 | `ai-title-optimizer` | 起标题 | 8 候选 + 搜索/点击双维打分 |
 | `ai-article-formatter` | 排版 | 符合 md2wx 语法的 markdown 稿 |
-| `ai-wechat-publish` | 发布草稿箱 | 渲染 → 封面 → 推草稿箱 |
+| `ai-wechat-publish` | 发布草稿箱 | preflight → 发布总闸 → 草稿箱体检 → 推草稿箱 |
 | `ai-data-analyst` | 分析数据 / 复盘 | 指标对比 + 归因（基线为空时只记录） |
 | `writing-voice` | 太AI化 / 不像我写的 | 从真实语料提取风格卡 |
 
@@ -90,7 +92,7 @@ python3 tools/draft_kit.py check topics/你的稿子.md
 
 ---
 
-## 五、十一个工具（`tools/`）
+## 五、十三个工具（`tools/`）
 
 | 脚本 | 一句话 |
 |---|---|
@@ -99,12 +101,14 @@ python3 tools/draft_kit.py check topics/你的稿子.md
 | `draft_kit.py` | 写稿提速：`brief` 情报包 / `check` 完稿体检 / `handoff` 交接单骨架 |
 | `make_figs.py` | 配图模板：信息 / 对照 / 清单 / 条目 / 柱状，统一视觉 |
 | `wx_publish.py` | 一键发布：渲染 → 封面 → 上传素材 → 推草稿箱 → 回查 → 写日志 |
-| `preflight.py` | 发布前自检 **27 项**（禁用词/结构/合规/排版/风格卡），退出码 0 才可发 |
+| `preflight.py` | 发布前自检（禁用词/结构/合规/排版/风格卡/形态/口头禅），退出码 0 才可进总闸 |
+| `publish_gate.py` | 发布总闸：账号健康度四查 + 形态配比 + 断更检查，无红灯才可推 |
 | `search_demand.py` | 搜索需求验证：Bing/Google/百度 建议接口 → 打分 + 长尾词 |
 | `voice_check.py` | 文风体检：对照个人语料基线，查 AI 腔与人味指标 |
 | `privacy_audit.py` | 隐私审计：7 个面逐一排查（含 git 提交作者与提交信息） |
 | `backup.sh` | 一键备份：**隐私审计 → 提交 → 推送到所有远程** |
 | `backup_work.sh` | 工作数据备份：rsync 到 iCloud（不经 git） |
+| `install_hooks.sh` | 启用 pre-push 隐私审计勾子 |
 
 详细参数与示例输出见 [`docs/工具手册.md`](docs/工具手册.md)。
 
@@ -115,7 +119,7 @@ python3 tools/draft_kit.py check topics/你的稿子.md
 1. **低创作度四条优先排除**：同质化 / 抄袭搬运 / 低信息量 / 低价值 AIGC
 2. **每个选题必须回答「这件事改变了什么旧规则？」**——答不出来就是纯资讯
 3. **无素材不写实测**：默认分析型，禁止亲历式描述；文末必须声明「本文未做实测」
-4. **交付前跑脚本、贴原始输出**——不用人打的勾代替机器判定
+4. **交付前跑脚本、贴原始输出**——preflight 与发布总闸都不能用人工打勾代替
 
 配套的其他红线：零编造（关键数字 2 个独立信源，官方文件 > 媒体报道）｜禁匿名信源｜
 禁引用标记｜禁配图提示文字｜禁草稿序号泄漏｜合规三件套必出（AI 标识 + 数据来源 + 商业关系）。
@@ -141,8 +145,10 @@ python3 tools/draft_kit.py check topics/你的稿子.md
 **本仓库只放「技能系统」**——它是可复用的方法与工具：
 
 ```
+SOUL.md          唯一宪法（身份/红线/平台规范/账号健康度）
+恢复期作战表.md  恢复期节奏与止血清单
 .agents/        8 个技能定义
-tools/          12 个脚本（含隐私审计、勾子安装与两套备份）
+tools/          13 个脚本（含发布总闸、隐私审计、勾子安装与两套备份）
 .githooks/      pre-push 勾子（推送前强制审计）
 .github/        Issue / PR 模板、CONTRIBUTING、行为准则
 docs/           三份手册
@@ -218,7 +224,7 @@ bash tools/install_hooks.sh     # 把 core.hooksPath 指向 .githooks/
 | 文档 | 内容 |
 |---|---|
 | [`docs/技能手册.md`](docs/技能手册.md) | 八个技能各自做什么、触发词、关键规则 |
-| [`docs/工具手册.md`](docs/工具手册.md) | 九个脚本的参数、示例命令、输出样例 |
+| [`docs/工具手册.md`](docs/工具手册.md) | 十三个脚本的参数、示例命令、输出样例 |
 | [`docs/接入指南.md`](docs/接入指南.md) | 换成你自己的账号：改哪三处、怎么建风格卡、怎么清工作数据 |
 
 ---

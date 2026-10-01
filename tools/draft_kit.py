@@ -41,15 +41,17 @@ def brief():
             flag = c(f"⚠️  已 {age} 天未更新，引用粉丝/收入前先让用户更新", "y") if age > 7 \
                    else c(f"✅ {age} 天前更新", "g")
             print(f"\n【账号状态】更新于 {m.group(1)}　{flag}")
-            for k in ("粉丝数", "当前阶段", "本阶段核心目标"):
-                r = re.search(rf"{k}：(.*)", t)
+            for k in ("粉丝数", "当前阶段", "本阶段核心目标", "账号检测结果",
+                      "产出结构（近30天）", "断更时长", "形态配比（最近6-8篇）"):
+                r = re.search(rf"{re.escape(k)}：(.*)", t)
                 if r: print(f"   {k}：{r.group(1).strip()}")
 
     # 2 风格卡硬约束
     sc = (REPO / "voice/风格卡.md")
     if sc.exists():
         t = sc.read_text(encoding="utf-8")
-        print(f"\n【风格卡硬约束】{c('卡里写「不用」的一处都不许出现', 'y')}")
+        print(f"\n【唯一宪法】SOUL.md：真实第一；正文自称统一为「我」；禁小编/笔者")
+        print(f"【风格卡硬约束】{c('卡里写「不用」的一处都不许出现', 'y')}")
         sec = re.search(r"### 盲测得出的三条硬规则.*?\n(.*?)\n\n", t, re.S)
         if sec:
             for line in sec.group(1).strip().splitlines():
@@ -89,6 +91,7 @@ def brief():
     print(f"   · 禁用词（{len(pf.BANNED_WORDS)} 个）：{'、'.join(pf.BANNED_WORDS)}")
     print(f"   · 禁：引用标记 [reference:n]｜配图提示｜序号泄漏｜匿名信源｜亲历式编造")
     print(f"   · 必出：合规三件套（AI 标识 + 数据来源 + 商业关系）")
+    print(f"   · 发布总闸：形态标注 + 账号健康度四查 + 草稿箱体检，缺一不推")
     print(c("\n提示：题材状态 B（无实测素材）必须文末写「本文未做实测」", "y"))
     print(c("━" * 62, "d"))
 
@@ -196,7 +199,8 @@ def handoff(path, append=False):
     print(c("━" * 62, "d"))
 
     if append:
-        block = ["\n## 排版交接单", "", "核心数字清单：", "",
+        block = ["\n## 排版交接单", "", "形态标注：", "",
+                 "本篇话题标签：", "", "核心数字清单：", "",
                  "| 数字 | 含义 | 出处 |", "|---|---|---|"]
         for n, _ in nums[:8]:
             block.append(f"| {n} |  |  | ")

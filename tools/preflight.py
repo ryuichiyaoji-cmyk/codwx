@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""发布前自检脚本（V6 体系）
+"""发布前自检脚本（V7 体系）
 
-覆盖：禁用词 / 标题规范 / 核心判断开篇 / V6 六模块结构 / 存疑表述 / 合规声明 / 字数 / 亲历式表述 / 拼盘信号 / 占位符 / **公众号排版六项**
+覆盖：禁用词 / 标题规范 / 核心判断开篇 / 六模块结构 / 存疑表述 / 合规声明 / 字数 / 亲历式表述 / 拼盘信号 / 占位符 / 形态标注 / 口头禅配额 / 话题标签 / **公众号排版六项**
 口径：字数只统计正文，标题备选、编辑器备注、自查记录、自检清单均不计入。
 
 口径说明：字数只统计正文，标题备选、编辑器备注、自查记录、自检清单均不计入。
@@ -20,16 +20,19 @@
 """
 import argparse
 import json
+import os
 import re
 import sys
 from pathlib import Path
 
+REPO = Path(__file__).resolve().parent.parent
+
 # ---- 规则表 ----
 BANNED_WORDS = ["背叛", "狂裁", "炸场", "出走", "怒", "惨", "秒杀", "吊打"]
-# 风格卡硬规则（2026-09-23 定稿）：不用自称、不用套话
+# 风格卡硬规则（2026-09-30 定稿）：正文自称统一为「我」
 STYLE_BANNED = {
-    "小编": "自称禁用——旧稿的“小编锐评/小编一句话”正是被判 AI 化的那批",
-    "笔者": "自称禁用——风格卡规定不用自称",
+    "小编": "自称禁用——正文统一用“我”",
+    "笔者": "自称禁用——正文统一用“我”",
     "咱们明天见": "收尾套话禁用",
     "点个关注不迷路": "收尾套话禁用",
     "今天我们来聊聊": "报到式开场禁用",
@@ -50,6 +53,12 @@ FAKE_EXPERIENCE = [
 # 拼盘信号（多个"另外/此外/还有"式并列）
 PATCHWORK = [r"此外", r"另外", r"与此同时", r"还有一个", r"顺便说", r"值得一提"]
 PLACEHOLDER = [r"【待[^】]*】", r"TODO", r"TBD", r"待补", r"待回填", r"待定"]
+
+# V7：形态 / 话题标签 / 口头禅配额
+FORM_RE = re.compile(r"(?:形态(?:标注)?|form)\s*[:：]\s*(实测|教程|资讯|批判)(?!\s*[/／])", re.I)
+TAG_LABEL_RE = re.compile(r"(?:本篇话题标签|话题标签|tags?)\s*[:：]\s*(#[^\s#]+(?:\s+#[^\s#]+)*)", re.I)
+TAG_ANY_RE = re.compile(r"#[\u4e00-\u9fffA-Za-z0-9_]{2,}")
+TICS = ["家人们", "好家伙", "这波操作", "上头", "拍脑袋猜"]
 
 # --- V6 体系：六模块结构（功能点，不要求标题逐字一致）---
 SIX_MODULES = {
@@ -81,7 +90,7 @@ SOURCE_SIGN = re.compile(
 
 
 # 六模块的固定功能名：它们是结构常量，不是"创意写法"，不参与同质化对比
-FIXED_MODULES = {"关咱啥事", "今日挖宝", "合规声明", "事件简述", "小编锐评", "结论",
+FIXED_MODULES = {"落地视角", "关咱啥事", "今日挖宝", "合规声明", "事件简述", "结论",
                  "核心判断", "排版交接单", "核心数字清单", "建议配图位", "金句",
                  "数据来源", "商业关系", "事件背景", "分层拆解", "行业对照", "深层变化"}
 
@@ -137,7 +146,7 @@ def display_len(text: str) -> int:
 
 
 META_HEADING = re.compile(
-    r"^#{2,4}\s*[^\n]*(标题|编辑器备注|编辑备注|编辑提示|自查记录|自检清单|发布说明|元数据)[^\n]*$", re.M
+    r"^#{2,4}\s*[^\n]*(标题|编辑器备注|编辑备注|编辑提示|自查记录|自检清单|发布说明|元数据|排版交接单|形态标注|发布交接)[^\n]*$", re.M
 )
 
 
@@ -156,6 +165,7 @@ def strip_meta_sections(text: str) -> str:
 
 
 def strip_md(text: str) -> str:
+    text = re.sub(r"^\s*---.*?\n---\s*", "", text, count=1, flags=re.S)  # YAML frontmatter
     text = re.sub(r"```.*?```", "", text, flags=re.S)          # 代码块
     text = re.sub(r"^\s*>.*$", "", text, flags=re.M)           # 引用块
     text = re.sub(r"^\s*\|.*$", "", text, flags=re.M)          # 表格
@@ -214,6 +224,7 @@ def find_titles(text: str):
     - 排版稿格式：无标题模块 → 只取正文第一行非空行（公众号稿的约定），
       避免把关咱啥事/互动问题里的 emoji 小标题误判成文章标题
     """
+    text = re.sub(r"^\s*---.*?\n---\s*", "", text, count=1, flags=re.S)
     sec = title_section(text)
     if not sec:
         first = next((l.strip() for l in text.splitlines() if l.strip()), "")
@@ -255,7 +266,40 @@ def check(path: Path) -> Report:
         r.fail("风格卡·自称与套话",
                "命中：" + "、".join(f"{w}（{why}）" for w, why in style_hits))
     else:
-        r.ok("风格卡·自称与套话", f"未命中 {len(STYLE_BANNED)} 条禁忌（不用自称/不用套话）")
+        r.ok("风格卡·自称与套话", f"未命中 {len(STYLE_BANNED)} 条禁忌（正文统一用“我”，不用小编/笔者）")
+
+    # 1.6 形态标注（V7）
+    form_hit = FORM_RE.search(raw)
+    if form_hit:
+        r.ok("形态标注", f"本篇形态：{form_hit.group(1)}")
+    else:
+        r.fail("形态标注", "缺少「形态标注：实测 / 教程 / 资讯 / 批判」——发布总闸第 5 步")
+
+    # 1.7 口头禅配额（V7.1）
+    tic_hits = {w: raw.count(w) for w in TICS if w in raw}
+    tic_total = sum(tic_hits.values())
+    family = tic_hits.get("家人们", 0)
+    if family > 1:
+        r.fail("口头禅配额", f"「家人们」出现 {family} 次；V7.1 要求每 3 篇最多 1 次")
+    elif tic_total > 3:
+        r.fail("口头禅配额", f"口头禅共 {tic_total} 次（{tic_hits}）；每篇最多 2–3 个")
+    elif tic_total == 0:
+        r.warn("口头禅配额", "本篇没有使用口头禅；不强制，但请确认不是模板化平铺")
+    else:
+        r.ok("口头禅配额", f"口头禅 {tic_total} 次：{tic_hits}")
+
+    # 1.8 话题标签（V7）
+    tag_text = ""
+    tag_file = Path(os.environ.get("WX_TAIL", str(REPO / "tail.md")))
+    if tag_file.exists():
+        tag_text = tag_file.read_text(encoding="utf-8", errors="ignore")
+    label_hit = TAG_LABEL_RE.search(raw)
+    if label_hit or TAG_ANY_RE.search(raw) or TAG_ANY_RE.search(tag_text):
+        r.ok("本篇话题标签", "已检测到话题标签（正文标签或外置 tail.md）")
+    elif tag_file.exists():
+        r.fail("本篇话题标签", f"{tag_file} 存在但没有可识别的话题标签（#标签）")
+    else:
+        r.warn("本篇话题标签", "未配置 tail.md；可在排版交接单写「本篇话题标签：#...」或设置 WX_TAIL")
 
     # 2 标题
     titles = find_titles(raw)
@@ -278,20 +322,19 @@ def check(path: Path) -> Report:
     # 3 核心判断开篇（V6 取代 V4 的“阅读收益前置”与“锐评前置”）
     plain = strip_md(raw)
     head = plain[: max(200, int(len(plain) * 0.35))]
-    if re.search(r"(小编觉得|我的判断|核心判断|先说判断|换句话|说到底|真正.{0,8}是|不是.{0,12}而是)", head):
+    if re.search(r"(我的判断|核心判断|先说判断|换句话|说到底|真正.{0,8}是|不是.{0,12}而是)", head):
         r.ok("核心判断开篇", "正文前部检测到明确判断句")
     else:
         r.fail("核心判断开篇", "正文前 35% 内未见明确判断（V6 要求先给判断）")
 
-    # 4 关咱啥事 / 挖宝 / 引导
-    for name, keys in [
-        ("关咱啥事", ["关咱啥事"]),
-        ("今日挖宝", ["今日挖宝", "🎁"]),
-    ]:
-        if any(k in raw for k in keys):
-            r.ok(name, "模块存在")
-        else:
-            r.fail(name, "模块缺失")
+    # 4 落地视角（V7；旧模块名只给 WARN）
+    land_keys = ["落地视角", "换算到你身上", "跟咱有啥关系", "对读者"]
+    if any(k in raw for k in land_keys):
+        r.ok("落地视角", "已把事件换算到读者身上")
+    elif "关咱啥事" in raw:
+        r.warn("落地视角", "仍在使用旧模块名「关咱啥事」；建议改为「落地视角」")
+    else:
+        r.fail("落地视角", "缺少“这件事跟读者有什么关系”的落地段落")
 
     # 5 文末引导 + 互动
     has_cta = ("关注" in raw) and ("评论" in raw or "聊聊" in raw)
@@ -301,7 +344,7 @@ def check(path: Path) -> Report:
         r.fail("文末引导 + 互动问题", "缺少关注引导或互动问题")
 
     # 6 合规声明三件套
-    ai_mark = ("AI 辅助生成" in raw) or ("AI辅助生成" in raw) or ("AI生成内容标识" in raw)
+    ai_mark = any(k in raw for k in ("AI 辅助生成", "AI辅助生成", "AI生成内容标识", "AI 标识", "AI标识", "AI 协助", "AI协助"))
     src_mark = "数据来源" in raw or "来源：" in raw
     biz_mark = "商业关系" in raw or "商业合作" in raw
     missing = [n for n, ok in [("AI生成标识", ai_mark), ("数据来源", src_mark), ("商业披露", biz_mark)] if not ok]
@@ -490,7 +533,7 @@ def check(path: Path) -> Report:
             r.ok("同质化", f"未命中最近 5 篇的 {len(used)} 条写法")
 
     # 12 过渡钩子
-    hooks = len(re.findall(r"(好家伙|说实话|但真正|小编带着|不过话说|这里有个)", raw))
+    hooks = len(re.findall(r"(好家伙|这波操作|我核过|我算过|我查了|但真正|不过话说|这里有个)", raw))
     if hooks >= 1:
         r.ok("过渡钩子", f"检测到 {hooks} 处过渡句（人工确认非模板复用）")
     else:

@@ -3,117 +3,112 @@ name: ai-wechat-publish
 description: "把公众号稿件渲染并推送到微信公众号草稿箱。当用户说'发布草稿箱''推送到草稿箱''发布''渲染'时使用。不用于写稿、排版内容层（走 ai-article-formatter）。"
 ---
 
-# 微信草稿箱发布链路
-
-**默认走一条命令，不要手工分步执行**（手工 8 步会烧掉大量词元，且容易漏步骤）。
+# 微信草稿箱发布链路（V7.0）
 
 ## 一、一键发布（主路径）
 
 ```bash
-python3 tools/wx_publish.py formatted/<稿件>-排版稿.md --tag <封面标签>
+python3 tools/wx_publish.py formatted/xx-排版稿.md --form 资讯 --tag 深度解读
 ```
 
-脚本内部按顺序做完 9 件事，输出压缩到 10 行以内：
-
-| # | 动作 | 失败即中止 |
-|---|---|---|
-| ① | `preflight.py` 自检 | ✅ 退出码非 0 直接退出，不许绕过 |
-| ② | 渲染 HTML | 调 `$MD2WX` 指定的渲染器（见下方「可配置路径」） |
-| ③ | PIL 自画封面 900×383 | 标题自动折行 + 字号自适应 |
-| ④ | 字符级核验（中文/字母数字/emoji 三段序列） | 不一致即中止 |
-| ⑤ | 取 access_token | 40164/40125 带人话提示 |
-| ⑥ | 上传封面（thumb）+ 配图（image），替换为永久 URL | 校验本地路径零残留 |
-| ⑦ | 推送草稿（`articles` 数组） | — |
-| ⑦b | 若带 `--replace`，新草稿上手后删旧稿 | 先推后删，中途失败不丢稿 |
-| ⑧ | 回查草稿箱确认 | 打印标题/图数/残留数 |
-| ⑨ | 追加每日发布日志 | `$PUBLISH_LOG_DIR/YYYY-MM-DD.md` |
-
-**常用参数**
+常用参数：
 
 | 参数 | 用途 |
 |---|---|
-| `--dry-run` | 只跑 ①②③④，不联网、不推送。改版式后先跑这个 |
-| `--replace <media_id>` | 重推同一篇，避免留下重复草稿 |
-| `--tag 论文深度解读` | 封面左上角标签（默认「深度解读」） |
-| `--title` / `--digest` | 覆盖标题 / 摘要（默认取 md 第一行与【导语】） |
-| `--no-log` | 跳过日志 |
+| `--form 实测/教程/资讯/批判` | **必填**。发布总闸第 5 步要求的形态标注 |
+| `--dry-run` | 跑 preflight + 发布总闸 + 本地渲染，不联网、不推送 |
+| `--replace <media_id>` | 确认是同一篇旧稿时重推，避免留下重复草稿 |
+| `--tag 深度解读` | 封面左上角标签（与 `--form` 不同） |
+| `--account-status <path>` | 覆盖账号状态块路径 |
+| `--perf-log <path>` | 覆盖发布流水账路径 |
+| `--no-log` | 跳过每日日志（`perf-log.md` 仍会自动追加） |
 
-成功后**告知用户去后台确认并手动点「发布」**（个人订阅号无群发权限，`48001` 属正常）。
+脚本顺序：
+```
+preflight → publish_gate（账号健康度四查 + 形态配比）
+→ 渲染 → 封面 → 字符级核验
+→ 取 token → 草稿箱体检（draft/batchget）
+→ 上传封面 + 配图 → draft/add → 回查 → 日志 / perf-log
+```
 
-## 二、前置条件（缺一不可）
+## 二、发布总闸（推送前必过，缺一不推）
 
-- `python3 tools/preflight.py <稿件>` **退出码 0**（脚本已内置，手工跑只为单独确认）
-- `$WX_ENV_FILE` 指定的文件里有 `WX_APPID` / `WX_APPSECRET`｜**绝不写进技能文件、绝不回显**（默认路径见脚本顶部）
+1. `tools/preflight.py` 退出码 0，粘贴原始输出
+2. 四条低创作度自检都能答出“这篇凭什么不属于这一类”
+3. 草稿箱体检：`draft/batchget` 查同主题并存与外来稿
+4. 账号健康度四查无 🔴
+5. 形态标注：本篇是**实测 / 教程 / 资讯 / 批判**哪一型，并对照最近 6–8 篇配比
+
+`tools/publish_gate.py` 会自动检查第 4、5 步，并对草稿箱同标题稿做拦截：
+
+```bash
+python3 tools/publish_gate.py formatted/xx.md --form 资讯
+```
+
+### 账号健康度四查
+
+| # | 查什么 | 看哪里 | 判据 |
+|---|---|---|---|
+| ① | 账号检测 | 后台“账号检测”页 | 第 5 项“符合内容推荐条件”是否异常 |
+| ② | 产出结构 | `account-status.md` + `perf-log.md` | 本流程加工稿 vs 直发稿；直发占比越高风险越大 |
+| ③ | 断更时长 | 最近成稿日期 / `perf-log.md` | 恢复期距今 > 2 天 = 🔴 |
+| ④ | 形态配比 | `perf-log.md` 最近 6–8 篇 | 实测 / 教程应占多数；连续 3 篇资讯 / 批判 = 🔴 |
+
+## 三、草稿箱体检（推送前必做）
+
+脚本会：
+
+1. 调 `draft/batchget` 列出最近草稿
+2. 拦截**同标题**草稿；确认是旧稿时用 `--replace <media_id>` 先推后删
+3. 打印所有草稿的标题与 media_id，交付时明确：
+
+> **本次只发 `<标题>`（media_id=...）；草稿箱其他条目只做辨认，不要顺手发布。**
+
+⚠️ 草稿箱是公用出口。同一个账号可能并存“加工发法”和“直发发法”的稿子；直发稿也计入账号画像。
+
+## 四、前置条件
+
+- `python3 tools/preflight.py <稿件>` 退出码 0
+- `python3 tools/publish_gate.py <稿件> --form <形态>` 退出码 0
+- `$WX_ENV_FILE` 里有 `WX_APPID` / `WX_APPSECRET`；**绝不写进技能文件、绝不回显**
 - 出口 IP 在微信后台白名单里（IP 会轮换，一次多留几个）
+- `tail.md`（或 `WX_TAIL` 指向的文件）已配置固定话题标签
+- 排版稿 YAML frontmatter 里有 `form:` 与 `tags:`，且 `form` 与命令 `--form` 一致
 
 | 项 | 值 |
 |---|---|
 | 封面尺寸 | 900×383 |
-| 视觉主线 | 冷灰科技蓝 **#3D5A80** |
-| 封面字体 | 由 `tools/wx_publish.py` 顶部 `FONT_BOLD` 指定（macOS 默认 STHeiti） |
+| 视觉主线 | 由 md2wx 主题决定；不在此技能写死 |
+| 封面字体 | 由 `tools/wx_publish.py` 顶部 `FONT_BOLD` 指定 |
+| 文章形态 | `--form` 必填，四选一 |
 
-**可配置路径**（用环境变量覆盖，不用改代码；默认值只是作者本机约定）
+## 五、发布后必做
 
-| 环境变量 | 作用 | 默认 |
-|---|---|---|
-| `MD2WX` | markdown → 微信 HTML 的渲染脚本 | 见 `tools/wx_publish.py` 顶部 |
-| `WXPYTHON` | 渲染器用的 python | 当前解释器 |
-| `WX_ENV_FILE` | 存放 `WX_APPID` / `WX_APPSECRET` 的文件 | 见 `tools/wx_publish.py` 顶部 |
-| `PUBLISH_LOG_DIR` | 发布日志目录 | 见 `tools/wx_publish.py` 顶部 |
+1. `perf-log.md` 自动追加一行：日期 / 形态 / 标题 / media_id / 回填状态
+2. 24–48h 后回填阅读、涨粉、搜索来源占比
+3. 有账号数据更新，同步 `account-status.md`
+4. 发完一篇，在 `module-log.md` 追加小标题与切入角度
 
-> 渲染器是**外部依赖**，本技能不附带、不重建、不另存副本。
-> 没有渲染器时，纯文本流程（写作 → 排版 → 自检）不受影响。
-
-## 三、错误码速查
+## 六、错误码速查
 
 | 码 | 含义 | 解决 |
 |---|---|---|
-| `40164` | IP 不在白名单 | 提取报错里的 IP 去后台加白。**换 secret 无用** |
-| `40125` | AppSecret 失效 | 请用户给新值；可能一次给多个候选，逐个回测 |
+| `40164` | IP 不在白名单 | 提取报错里的 IP 去后台加白，换 secret 无用 |
+| `40125` | AppSecret 失效 | 请用户给新值，逐个回测 |
 | `40001` | token 过期 | 重取（7200 秒有效） |
 | `44003` | empty news data | 检查 payload 是否包了 `articles: [...]` |
-| `48001` | 无群发权限 | 推草稿即可，**别再试第二次** |
+| `48001` | 无群发权限 | 推草稿即可，别再试第二次 |
 
 ⚠️ **`draft/add` 成功时不返回 `errcode`**，直接返回 `{"media_id": ..., "item": [...]}`。
-判断成功要用 `'media_id' in resp`，写成 `errcode == 0` 会把成功误报成失败。
+判断成功要用 `'media_id' in resp`。
 
-## 四、手工兜底（仅当脚本报错要排查时）
+## 七、防坑清单
 
-```bash
-# 1 渲染（$WXPYTHON / $MD2WX 见上表）
-"$WXPYTHON" "$MD2WX" "outputs/xx.md" "outputs/xx.html"
-# 2 取 token（不要回显）
-set -a; . "$WX_ENV_FILE"; set +a
-curl -s --max-time 15 "https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=$WX_APPID&secret=$WX_APPSECRET"
-# 3 上传素材（正文图 type=image，封面 type=thumb，两者不同）
-curl -s -X POST "https://api.weixin.qq.com/cgi-bin/material/add_material?access_token=${TOKEN}&type=image" -F media="@path.png"
-# 4 推草稿
-curl -s -X POST -H "Content-Type: application/json" --data-binary @payload.json \
-  "https://api.weixin.qq.com/cgi-bin/draft/add?access_token=${TOKEN}"
-```
-
-**必须用 curl**，不要用 python urllib/requests 直连微信 API（本机系统 Python 的 SSL 链连 `api.weixin.qq.com` 必挂）。
-
-## 五、改排版 = 只改样式不改字（硬规矩）
-
-任何"重新排版"都要做字符级核验：md 剥标记后与 HTML 去标签后的纯文本比对，**中文字符、字母数字、emoji 三段序列必须完全一致**（脚本 ④ 已内置）。
-
-三个已知**假阳性**，按此处理：
-
-1. HTML 侧**先把 `<br>` 还原成换行再剥标签**，否则连续两行会被并成一个 token
-2. md 侧**先剥掉 YAML frontmatter**——渲染器自带 `strip_frontmatter`，核验不剥会凭空多出 `title:` 那行
-3. **加图后**要同时剥 md 侧 `![...](...)` 与 HTML 侧 `<img>`
-
-## 六、推送完成后（必做）
-
-1. **每日日志**：`$PUBLISH_LOG_DIR/YYYY-MM-DD.md`（脚本 ⑨ 自动写）
-2. **工作区记忆**：出现新情况（IP 拦截、secret 变化）→ 更新你的记忆文件
-3. **联动**：账号数据更新 → 同步 `account-status.md`；发完一篇 → `module-log.md` 追加一行（脚本不代劳，写作环节已登记）
-
-## 七、防坑清单（都是踩过的）
-
-- **`find` 扫大目录会被超时杀掉**（exit 137）导致"找不到文件"的误判 → 用 `ls` 直接看
-- **`/tmp` 会被系统清理** → 封面等产物落到 `outputs/`（脚本已这么做）
-- token / 封面上传 / 草稿推送**三步独立**，不要 `&&` 串联
-- 渲染器 **禁止重建、禁止另存到 outputs/**——它是外部依赖，不随本仓库分发
-- 封面装饰元素（如右侧竖条）与标题**留安全距离**，否则会压到字上
+- token / 封面上传 / 草稿推送三步独立，不要 `&&` 串联
+- 必须用 curl；不要用 Python urllib / requests 直连微信 API
+- 多张正文图逐张上传，失败时能定位到具体文件
+- 本地路径残留必须为 0；CDN 图数必须等于配图数
+- 草稿推送成功后回查标题、图数和本地残留
+- 改排版 = 只改样式不改字；字符级核验不通过不推
+- 字符核验会额外渲染一份 `--no-tail` HTML 再比对；外置尾部由正式渲染单独注入
+- 不要把 `## 排版交接单` 留在排版稿里，否则会干扰渲染与核验

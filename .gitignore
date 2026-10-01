@@ -49,3 +49,9 @@ module-log.md
 # 任何 token / 凭据交接文件（保险起见一律忽略）
 .gh-token
 *.token
+
+# 账号运营流水（含标题与流量数据）
+perf-log.md
+
+# 外置文末尾部（可能含品牌名）
+tail.md
